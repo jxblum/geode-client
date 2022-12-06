@@ -5,41 +5,55 @@ Hi Malaya-
 
 The following is feedback on your example/test:
 
-1. First, I [refactored and cleaned up] the Gradle build file with only the essential (dependency) declarations
-required to build and run the test.
+1. First, I https://github.com/jxblum/geode-client/commit/9bf434782f1cdcc9abc0873c88e07774495b7b09[refactored]
+the Gradle build file to only contain the essential (dependency) declarations required to build and run
+the Spring Boot application and test.
 
-2. Your `Customer` (application model) class is inappropriately https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/Customer.java#L8[annotated]
-with SDG's https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/package-frame.html[`@ReplicateRegion`]
-"mapping" annotation. A `REPLICATE` Region is only applicable to peer `Cache` applications, not clients
-(i.e, `ClientCache` instances), as your Spring Boot application has been https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/GeodeClientApplication.java#L8-L10[declared].
+2. The `Customer` (application domain model/persistent entity) class is inappropriately https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/Customer.java#L8[annotated]
+with SDG's https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/ReplicateRegion.html[`@ReplicateRegion`] "mapping" annotation.
+`REPLICATE` Regions are only applicable to peer `Cache` applications, not clients, as your Spring Boot has been
+https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/GeodeClientApplication.java#L8-L10[declared].
 
-3. Additionally, you seem to think SDG's "mapping" annotations (e.g. `@ReplicateRegion`) have some type of control over
-how the Region configuration metadata is pushed to the server from the client in order to create a matching Region
-(by "name", only) on the server(s) in the cluster, such by having a "GLOBAL" `Scope`. Again, this is not how SDG's
+3. Then, you inappropriately https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L14-L15[annotated]
+your Spring `@Configuration` annotated `GlobalRegionConfiguration` class with SDG's https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/ClientRegion.html[`@ClientRegion`] "mapping" annotation.
+The `@ClientRegion` "mapping" annotation, along with all SDG "mapping" annotations in
+the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/package-frame.html[o.s.data.gemfire.mapping] package,
+for that matter, are only used to annotate application domain model/persistent entity classes with "mapping metadata",
+which is used by the Spring Data [Geode] framework to store an objects in Regions. In general, a SD[G] "mapping" annotation
+identifies the Region in which the entity (POJO) is persisted, much like JPA's `@Table` annotation "names" the database
+table in which the entity is mapped and stored. Additionally, SDG's "mapping" annotations provide additional metadata
+for creation of the Region on the Spring application-side only when additionally combined with SDG's `@EnableEntityDefinedRegions`
+annotation. This mapping metadata from mapping annotations is not pushed to the servers for Region creation
+when combined with SDG's `@EnableCluserConfiguration` annotation.
+
+4. Therefore, and for some reason, you seem to think that https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/Customer.java#L8[annotating]
+your `Customer` class with `@ReplicateRegion` combined with https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L14[annotating]
+your configuration class with `@ClientRegion` and https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L12[declaring]
+the `@EnableClusterConfiguration` annotation will somehow create a client-side Region "Customers", then push
+the configuration of this client Region up to the servers in the cluster as a "GLOBAL", `REPLICATE` Region.
+None of this is true.
+
+5. https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L12[Declaring]
+the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableClusterConfiguration.html[`@EnableClusterConfiguration`] annotation
+without implicitly (using https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableEntityDefinedRegions.html[`@EnableEntityDefinedRegions`])
+or explicitly (using Java-based configuration, as you have https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L17-L24[commented out])
+does nothing. You need a Region (bean) definition using `@EnableEntityDefinedRegions`, or with explicit Region bean definition
+as you have defined/declared in Java-based configuration. SDG's `@EnableClusterConfiguration` feature uses the Regions
+created in the cache (e.g. the `@ClientCache` instance, in your case) to determine which Regions to create on the servers.
+If the cache has no created Regions, then there is nothing to "push".
+
+> TIP: You should review the following: https://docs.spring.io/spring-data/geode/docs/current/reference/html/#mapping[POJO Mapping],
+https://docs.spring.io/spring-data/geode/docs/current/reference/html/#bootstrap-annotation-config-regions[Configuring Regions]
+(refer to _Spring Boot for Apache Geode's_ ref doc and guidance for https://docs.spring.io/spring-boot-data-geode-build/current/reference/html5/#geode-configuration-declarative-annotations-productivity-regions[more concise information]
+on the topic of "declarative" Region creation, and specifically for https://docs.spring.io/spring-boot-data-geode-build/current/reference/html5/#geode-configuration-declarative-annotations-productivity-regions-enableentitydefined[`@EnableEntityDefinedRegions`]),
 https://docs.spring.io/spring-data/geode/docs/current/reference/html/#bootstrap-annotation-config-cluster[Cluster Configuration Push]
-feature actually works. It certainly is not based on any "mapping" annotation in the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/package-frame.html[package]
-and does not send anything other than the "name" of the Region matching the client Region by the same "name" along with
-the requested `DataPolicy`, as determined by the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableClusterConfiguration.html#serverRegionShortcut--[@EnableClusterConfiguration.serverRegionShortcut] attribute.
+(to get the real power of Spring Boot, you should use _Spring Boot for Apache Geode_ (SBDG's) and SBDG's
+https://docs.spring.io/spring-boot-data-geode-build/current/reference/html5/#geode-configuration-declarative-annotations-productivity-enableclusteraware[`@EnableClusterAware`] annotation).
 
-4. The `@ClientRegion` mapping annotation does NOT apply to Spring @Configuration classes, as you have
-https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L14[declared here].
-This is certainly not going to create a Region on the client-side...
+6. In conclusion, I https://github.com/jxblum/geode-client/tree/feedback[modified] your Spring Boot application to work as expected,
+with the following results:
 
-5. A client Region (bean) definition and declaration is actually needed to send any configuration metadata (e.g. Region
-definition) from the client to the server(s) in the cluster at all. Currently, you have the
-https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L17-L24[JavaConfig bean definition]
-for the "Customers" Region commented out. You either need this, or alternatively, you need to declare the SDG
-https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableEntityDefinedRegions.html[`@EnableEntityDefinedRegion`] annotation
-on your Spring `@Configuration` annotated `GlobalRegionConfiguration` class, such as with:
-`@EnableClusterConfiguration(useHttp = true, requireHttps = false, serverRegionShortcut = RegionShortcut.REPLICATE)`.
-
-6. An explicit Java-based configuration Region bean definition or an (implicit) `@EnableEntityDefinedRegions` annotation
-declaration is required for the `@EnableClusterConfiguration` annotation (https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L12[declared here])
-to do its work, which should technically be declared as: `@EnableClusterConfiguration(useHttp = true, requireHttps = false, serverRegionShortcut = RegionShortcut.REPLICATE)`.
-
-7. After the corrections and I run the example:
-
-First, I start a cluster using Gfsh:
+First, start an Apache Geode cluster using _Gfsh_:
 
 [source,txt]
 ----
@@ -99,7 +113,7 @@ gfsh>
 
 ----
 
-Then, when I run the application, you should see:
+Then, run the application; you should see:
 
 [source,txt]
 ----
