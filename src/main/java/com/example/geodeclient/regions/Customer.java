@@ -1,12 +1,32 @@
 package com.example.geodeclient.regions;
 
-import org.apache.geode.cache.Scope;
-import org.springframework.data.gemfire.ScopeType;
-import org.springframework.data.gemfire.mapping.annotation.Region;
-import org.springframework.data.gemfire.mapping.annotation.ReplicateRegion;
+import java.io.Serializable;
 
-@ReplicateRegion(name = "Customers", scope = ScopeType.GLOBAL)
-public class Customer {
-    String id;
-    String value;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.gemfire.mapping.annotation.Region;
+
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+@Getter
+@ToString(of = "name")
+@EqualsAndHashCode
+@RequiredArgsConstructor(staticName = "as")
+@Region("Customers")
+public class Customer implements Serializable {
+
+    @Id
+    @Setter
+    private String id;
+
+    @lombok.NonNull
+    private final String name;
+
+    public Customer identifiedBy(String id) {
+        setId(id);
+        return this;
+    }
 }
