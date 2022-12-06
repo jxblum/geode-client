@@ -123,9 +123,6 @@ List of regions
 Customers
 
 
-gfsh>describe region --name=
-
-required --name: Name/Path of the region to be described.; no default value
 gfsh>describe region --name=/Customers
 Name            : Customers
 Data Policy     : replicate
@@ -138,6 +135,16 @@ Non-Default Attributes Shared By Hosting Members
 Region | data-policy | REPLICATE
        | size        | 1
        | scope       | distributed-ack
+
+
+gfsh>query --query="SELECT c.name FROM /Customers c"
+Result : true
+Limit  : 100
+Rows   : 1
+
+Result
+-------
+Jon Doe
 
 
 gfsh>
