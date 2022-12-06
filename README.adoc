@@ -149,3 +149,6 @@ Jon Doe
 
 gfsh>
 ----
+
+If you additionally want to see how your Spring Boot application would look using Spring Boot for Apache Geode, then
+see the https://github.com/jxblum/geode-client/tree/spring-boot[spring-boot] topic branch.
