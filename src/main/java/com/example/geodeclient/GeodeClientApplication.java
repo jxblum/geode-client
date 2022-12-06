@@ -16,6 +16,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.GemfireTemplate;
+import org.springframework.geode.config.annotation.ClusterAwareConfiguration;
 
 @SpringBootApplication
 public class GeodeClientApplication {
@@ -36,7 +37,8 @@ public class GeodeClientApplication {
 			assertThat(customersTemplate.getRegion()).isNotNull();
 			assertThat(customersTemplate.getRegion().getName()).isEqualTo("Customers");
 			assertThat(customersTemplate.getRegion().getAttributes()).isNotNull();
-			assertThat(customersTemplate.getRegion().getAttributes().getDataPolicy()).isEqualTo(DataPolicy.EMPTY);
+			assertThat(customersTemplate.getRegion().getAttributes().getDataPolicy())
+				.isEqualTo(resolveExpectedDataPolicy());
 
 			Customer jonDoe = Customer.as("Jon Doe").identifiedBy(UUID.randomUUID().toString());
 
@@ -45,4 +47,12 @@ public class GeodeClientApplication {
 			System.err.printf("Saved Customer [%s]!!%n", jonDoe);
 		};
 	}
+
+	private DataPolicy resolveExpectedDataPolicy() {
+		return ClusterAwareConfiguration.ClusterAwareCondition.isAvailable()
+			? DataPolicy.EMPTY
+			: DataPolicy.NORMAL;
+	}
+
+
 }
