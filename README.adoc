@@ -1,0 +1,130 @@
+[[feedback]]
+= FEEDBACK
+
+Hi Malaya-
+
+The following is feedback on your example/test:
+
+1. First, I [refactored and cleaned up] the Gradle build file with only the essential (dependency) declarations
+required to build and run the test.
+
+2. Your `Customer` (application model) class is inappropriately https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/Customer.java#L8[annotated]
+with SDG's https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/package-frame.html[`@ReplicateRegion`]
+"mapping" annotation. A `REPLICATE` Region is only applicable to peer `Cache` applications, not clients
+(i.e, `ClientCache` instances), as your Spring Boot application has been https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/GeodeClientApplication.java#L8-L10[declared].
+
+3. Additionally, you seem to think SDG's "mapping" annotations (e.g. `@ReplicateRegion`) have some type of control over
+how the Region configuration metadata is pushed to the server from the client in order to create a matching Region
+(by "name", only) on the server(s) in the cluster, such by having a "GLOBAL" `Scope`. Again, this is not how SDG's
+https://docs.spring.io/spring-data/geode/docs/current/reference/html/#bootstrap-annotation-config-cluster[Cluster Configuration Push]
+feature actually works. It certainly is not based on any "mapping" annotation in the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/mapping/annotation/package-frame.html[package]
+and does not send anything other than the "name" of the Region matching the client Region by the same "name" along with
+the requested `DataPolicy`, as determined by the https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableClusterConfiguration.html#serverRegionShortcut--[@EnableClusterConfiguration.serverRegionShortcut] attribute.
+
+4. The `@ClientRegion` mapping annotation does NOT apply to Spring @Configuration classes, as you have
+https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L14[declared here].
+This is certainly not going to create a Region on the client-side...
+
+5. A client Region (bean) definition and declaration is actually needed to send any configuration metadata (e.g. Region
+definition) from the client to the server(s) in the cluster at all. Currently, you have the
+https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L17-L24[JavaConfig bean definition]
+for the "Customers" Region commented out. You either need this, or alternatively, you need to declare the SDG
+https://docs.spring.io/spring-data/geode/docs/current/api/org/springframework/data/gemfire/config/annotation/EnableEntityDefinedRegions.html[`@EnableEntityDefinedRegion`] annotation
+on your Spring `@Configuration` annotated `GlobalRegionConfiguration` class, such as with:
+`@EnableClusterConfiguration(useHttp = true, requireHttps = false, serverRegionShortcut = RegionShortcut.REPLICATE)`.
+
+6. An explicit Java-based configuration Region bean definition or an (implicit) `@EnableEntityDefinedRegions` annotation
+declaration is required for the `@EnableClusterConfiguration` annotation (https://github.com/nayakmk/geode-client/blob/main/src/main/java/com/example/geodeclient/regions/GlobalRegionConfiguration.java#L12[declared here])
+to do its work, which should technically be declared as: `@EnableClusterConfiguration(useHttp = true, requireHttps = false, serverRegionShortcut = RegionShortcut.REPLICATE)`.
+
+7. After the corrections and I run the example:
+
+First, I start a cluster using Gfsh:
+
+[source,txt]
+----
+$ gfsh
+    _________________________     __
+   / _____/ ______/ ______/ /____/ /
+  / /  __/ /___  /_____  / _____  /
+ / /__/ / ____/  _____/ / /    / /
+/______/_/      /______/_/    /_/    1.14.4
+
+Monitor and Manage Apache Geode
+gfsh>
+gfsh>
+gfsh>start locator --name=LocatorOne
+Starting a Geode Locator in /Users/jblum/pivdev/lab/LocatorOne...
+........
+Locator in /Users/jblum/pivdev/lab/LocatorOne on 10.99.199.19[10334] as LocatorOne is currently online.
+Process ID: 20273
+Uptime: 10 seconds
+Geode Version: 1.14.4
+Java Version: 1.8.0_351
+Log File: /Users/jblum/pivdev/lab/LocatorOne/LocatorOne.log
+JVM Arguments: -Dgemfire.enable-cluster-configuration=true -Dgemfire.load-cluster-configuration-from-dir=false -Dgemfire.launcher.registerSignalHandlers=true -Djava.awt.headless=true -Dsun.rmi.dgc.server.gcInterval=9223372036854775806
+Class-Path: /Users/jblum/pivdev/apache-geode-1.14.4/lib/geode-core-1.14.4.jar:/Users/jblum/pivdev/apache-geode-1.14.4/lib/geode-dependencies.jar
+
+Successfully connected to: JMX Manager [host=10.99.199.19, port=1099]
+
+Cluster configuration service is up and running.
+
+
+gfsh>start server --name=ServerOne
+Starting a Geode Server in /Users/jblum/pivdev/lab/ServerOne...
+...
+Server in /Users/jblum/pivdev/lab/ServerOne on 10.99.199.19[40404] as ServerOne is currently online.
+Process ID: 20401
+Uptime: 2 seconds
+Geode Version: 1.14.4
+Java Version: 1.8.0_351
+Log File: /Users/jblum/pivdev/lab/ServerOne/ServerOne.log
+JVM Arguments: -Dgemfire.default.locators=10.99.199.19[10334] -Dgemfire.start-dev-rest-api=false -Dgemfire.use-cluster-configuration=true -XX:OnOutOfMemoryError=kill -KILL %p -Dgemfire.launcher.registerSignalHandlers=true -Djava.awt.headless=true -Dsun.rmi.dgc.server.gcInterval=9223372036854775806
+Class-Path: /Users/jblum/pivdev/apache-geode-1.14.4/lib/geode-core-1.14.4.jar:/Users/jblum/pivdev/apache-geode-1.14.4/lib/geode-dependencies.jar
+
+
+gfsh>list members
+Member Count : 2
+
+   Name    | Id
+---------- | ------------------------------------------------------------------
+LocatorOne | 10.99.199.19(LocatorOne:20273:locator)<ec><v0>:41000 [Coordinator]
+ServerOne  | 10.99.199.19(ServerOne:20401)<v1>:41001
+
+
+gfsh>list regions
+No Regions Found
+
+gfsh>
+
+----
+
+Then, when I run the application, you should see:
+
+[source,txt]
+----
+gfsh>list regions
+List of regions
+---------------
+Customers
+
+
+gfsh>describe region --name=
+
+required --name: Name/Path of the region to be described.; no default value
+gfsh>describe region --name=/Customers
+Name            : Customers
+Data Policy     : replicate
+Hosting Members : ServerOne
+
+Non-Default Attributes Shared By Hosting Members
+
+ Type  |    Name     | Value
+------ | ----------- | ---------------
+Region | data-policy | REPLICATE
+       | size        | 1
+       | scope       | distributed-ack
+
+
+gfsh>
+----
