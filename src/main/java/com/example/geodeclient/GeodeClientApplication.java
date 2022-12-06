@@ -2,29 +2,29 @@ package com.example.geodeclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Collections;
 import java.util.UUID;
 
 import com.example.geodeclient.regions.Customer;
 
 import org.apache.geode.cache.DataPolicy;
+import org.apache.geode.cache.RegionShortcut;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.gemfire.GemfireTemplate;
-import org.springframework.data.gemfire.config.annotation.ClientCacheApplication;
 
 @SpringBootApplication
-@ClientCacheApplication(
-	name = "SpringBootApacheGeodeCacheClientApplication",
-	locators = { @ClientCacheApplication.Locator }
-)
 public class GeodeClientApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(GeodeClientApplication.class, args);
+		new SpringApplicationBuilder(GeodeClientApplication.class)
+			.properties(Collections.singletonMap("spring.data.gemfire.cluster.region.type", RegionShortcut.REPLICATE))
+			.build()
+			.run(args);
 	}
 
 	@Bean
