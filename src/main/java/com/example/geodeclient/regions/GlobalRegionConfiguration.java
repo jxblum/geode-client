@@ -9,8 +9,10 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.gemfire.GemfireTemplate;
 import org.springframework.data.gemfire.config.annotation.EnableClusterConfiguration;
 import org.springframework.data.gemfire.config.annotation.EnableEntityDefinedRegions;
+import org.springframework.data.gemfire.config.annotation.EnablePdx;
 
 @Configuration
+@EnablePdx
 @EnableEntityDefinedRegions(basePackageClasses = Customer.class)
 @EnableClusterConfiguration(useHttp = true, requireHttps = false, serverRegionShortcut = RegionShortcut.REPLICATE)
 public class GlobalRegionConfiguration {

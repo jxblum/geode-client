@@ -1,7 +1,5 @@
 package com.example.geodeclient.regions;
 
-import java.io.Serializable;
-
 import org.springframework.data.annotation.Id;
 import org.springframework.data.gemfire.mapping.annotation.Region;
 
@@ -16,7 +14,7 @@ import lombok.ToString;
 @EqualsAndHashCode
 @RequiredArgsConstructor(staticName = "as")
 @Region("Customers")
-public class Customer implements Serializable {
+public class Customer {
 
     @Id
     @Setter
